@@ -17,7 +17,7 @@ func startServer(t *testing.T) {
 	}
 }
 
-func startListener(id int64, t *testing.T) {
+func startListener(id string, t *testing.T) {
 	_, err := MakeListener(id, ":34000", "127.0.0.1:62077")
 	if err != nil {
 		t.Fatalf("Starting listener %s\n", err)
@@ -27,6 +27,6 @@ func startListener(id int64, t *testing.T) {
 func TestServer(t *testing.T) {
 	startServer(t)
 	time.Sleep(1e9)
-	startListener(1, t)
+	startListener("1", t)
 	<-make(chan int)
 }

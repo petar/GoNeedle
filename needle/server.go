@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"tonika/needle/proto"
+	"github.com/petar/GoNeedle/needle/proto"
 	pb "goprotobuf.googlecode.com/hg/proto"
 )
 
@@ -24,20 +24,26 @@ import (
 
 type Server struct {
 	udp *net.UDPConn	// Socket that receives UDP pings from the clients
-	ids map[int64]*client   // Id-to-client map
+	ids map[string]*client  // Id-to-client map
 	lk  sync.Mutex          // Lock for ids field
 }
 
 const (
+	MaxIdLen        = 64       // Maximum number of characters in a node ID
 	ExpirePeriod    = 30e9     // Run expiration loop every 30 secs
 	ClientFreshness = 5e9      // Expire clients who haven't pinged in the past 5 secs
 	ListenerRefresh = 3e9      // How often the client sends a ping, every 3 secs
 	MaxFD           = 200      // Maximum number of concurrent FDs used by HTTP API
+	MaxPacketSize   = 32*1024  // Maximum packet size for payload packets
+)
+
+var (
+	ErrIdLen        = os.NewError("Id exceeds max len")
 )
 
 // client describes real-time information for a given client
 type client struct {
-	id       int64
+	id       string
 	lastSeen int64
 	addr     *net.UDPAddr
 }
@@ -63,7 +69,7 @@ func MakeServer(uaddr string, haddr string) (*Server, os.Error) {
 	// Start server
 	s := &Server{
 		udp: conn,
-		ids: make(map[int64]*client),
+		ids: make(map[string]*client),
 	}
 	_, err = makeQueryAPI(
 		haddr, 
@@ -91,7 +97,7 @@ func (s *Server) expire(now int64) {
 	}
 }
 
-func (s *Server) updateClient(id int64, now int64, addr *net.UDPAddr) {
+func (s *Server) updateClient(id string, now int64, addr *net.UDPAddr) {
 	s.lk.Lock()
 	defer s.lk.Unlock()
 
@@ -111,7 +117,7 @@ func (s *Server) updateClient(id int64, now int64, addr *net.UDPAddr) {
 func (s *Server) poll() os.Error {
 
 	// Read next UDP packet
-	b := make([]byte, 32)
+	b := make([]byte, MaxIdLen + 32)
 	n, addr, err := s.udp.ReadFromUDP(b)
 	if err != nil {
 		return err
@@ -120,7 +126,7 @@ func (s *Server) poll() os.Error {
 	// Decode packet contents
 	payload := &proto.Ping{}
 	err = pb.Unmarshal(b[0:n], payload)
-	if err != nil {
+	if err != nil || len(*payload.Id) > MaxIdLen {
 		return err
 	}
 
@@ -162,10 +168,9 @@ func stringToInt64(s string) (int64, os.Error) {
 }
 
 func (s *Server) Query(query string) (string, os.Error) {
-	query = strings.TrimSpace(query)
-	qid, err := stringToInt64(query)
-	if err != nil {
-		return "", err
+	qid := strings.TrimSpace(query)
+	if len(qid) > MaxIdLen {
+		return "", ErrIdLen
 	}
 	s.lk.Lock()
 	cl, ok := s.ids[qid]

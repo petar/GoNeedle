@@ -63,7 +63,6 @@ test:	test.dirs
 bench:	bench.dirs
 
 nuke: nuke.dirs
-	rm -rf "$(GOROOT)"/pkg/*
 
 deps:
 	./deps.bash

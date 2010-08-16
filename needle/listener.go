@@ -5,11 +5,12 @@
 package needle
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"sync"
 	"time"
-	"tonika/needle/proto"
+	"github.com/petar/GoNeedle/needle/proto"
 	pb "goprotobuf.googlecode.com/hg/proto"
 )
 
@@ -20,7 +21,7 @@ type Listener struct {
 	connLk     sync.Mutex     // Lock for conn
 }
 
-func MakeListener(id int64, bindAddr, serverAddr string) (*Listener, os.Error) {
+func MakeListener(id, bindAddr, serverAddr string) (*Listener, os.Error) {
 
 	// Resolve UDP addresses
 	saddr, err := net.ResolveUDPAddr(serverAddr)
@@ -53,15 +54,27 @@ func MakeListener(id int64, bindAddr, serverAddr string) (*Listener, os.Error) {
 		conn:       conn,
 	}
 	go l.pingLoop()
+	go l.listenLoop()
 
 	return l, nil
 }
 
 func (l *Listener) pingLoop() {
 	for {
-		l.connLk.Lock()
+		// l.connLk.Lock()
 		l.conn.WriteToUDP(l.pingPacket, l.serverAddr)
-		l.connLk.Unlock()
+		// l.connLk.Unlock()
 		time.Sleep(ListenerRefresh)
+	}
+}
+
+func (l *Listener) listenLoop() {
+	for {
+		buf := make([]byte, MaxPacketSize)
+		n, addr, err := l.conn.ReadFromUDP(buf)
+		if err != nil {
+			continue
+		}
+		fmt.Printf("Packet from %s/%d\n", addr.String(), n)
 	}
 }

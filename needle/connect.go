@@ -9,7 +9,12 @@ import (
 	"os"
 	"sync"
 	"time"
-	"tonika/needle/proto"
+	"github.com/petar/GoNeedle/needle/proto"
 	pb "goprotobuf.googlecode.com/hg/proto"
 )
 
+type Conn struct {
+}
+
+func Dial(needleServerAddr, targetId, targetPort string) (*Conn, os.Error) {
+}

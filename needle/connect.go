@@ -10,8 +10,8 @@ import (
 	"os"
 	//"sync"
 	//"time"
-	//"github.com/petar/GoNeedle/needle/proto"
-	//pb "goprotobuf.googlecode.com/hg/proto"
+	"github.com/petar/GoNeedle/needle/proto"
+	pb "goprotobuf.googlecode.com/hg/proto"
 )
 
 type Conn struct {
@@ -27,9 +27,14 @@ func Dial(needleServerAddr, targetId, targetPort string) (*Conn, os.Error) {
 	}
 	fmt.Printf("a=%s\n", answer)
 
-/*
+	// Resolve UDP of node
+	taddr, err := net.ResolveUDPAddr(answer)
+	if err != nil {
+		return nil, err
+	}
+
 	// Bind/dial target node's UDP address
-	conn, err := net.DialUDP("udp", nil, saddr)
+	conn, err := net.DialUDP("udp", nil, taddr)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +45,12 @@ func Dial(needleServerAddr, targetId, targetPort string) (*Conn, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-*/
+
+	_, err = conn.Write(packet)
+	if err != nil {
+		return nil, err
+	}
+
 	// XXX ?
 	return nil, nil
 }

@@ -5,12 +5,12 @@
 package needle
 
 import (
-	"fmt"
+	//"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"sync"
-	"http"
+	"github.com/petar/GoHTTP/http"
 )
 
 type queryAPI struct {
@@ -82,7 +82,6 @@ func (qa *queryAPI) serveAndCloseConn(conn net.Conn) {
 
 func fetchAPI(serverAddr, query string) (string, os.Error) {
 
-	fmt.Printf("dialing\n")
 	conn, err := net.Dial("tcp", "", serverAddr)
 	if err != nil {
 		return "", err
@@ -96,36 +95,34 @@ func fetchAPI(serverAddr, query string) (string, os.Error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("url ok = %s \n", url.String())
 	req := &http.Request{
 		Method: "GET",
 		URL: url, 
 		Proto: "HTTP/1.1",
 		ProtoMajor: 1,
 		ProtoMinor: 1,
-		Close: true,
+		//Close: true, XXX possible HTTP bug. Does not work when this is uncommented.
 		Host: serverAddr,
 		UserAgent: "GoNeedle-ClientConnect",
 	}
 
+	//d, err := http.DumpRequest(req, true)
+	//fmt.Printf("REQ:\n%s\n", string(d))
+
 	err = cc.Write(req)
-	fmt.Printf("written\n")
 	if err != nil {
 		return "", err
 	}
 
-	fmt.Printf("reading ..\n")
 	resp, err := cc.Read()
-	if err != nil {
+	if resp == nil {
 		return "", err
 	}
-	fmt.Printf("read ok\n")
 	if resp.Body == nil {
 		return "", nil
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("draining ..\n")
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err

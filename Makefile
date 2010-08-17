@@ -26,6 +26,9 @@ all: install
 DIRS=\
 	needle/proto\
 	needle\
+	cmd/needle-daemon\
+	cmd/needle-listen\
+	cmd/needle-connect\
 
 TEST=\
 	$(filter-out $(NOTEST),$(DIRS))

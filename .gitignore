@@ -20,3 +20,7 @@ syntax:regexp
 ^pkg/
 ^src/cmd/(.*)/6?\1$
 ^.*/core.[0-9]*$
+
+cmd/needle-daemon/needle-daemon
+cmd/needle-connect/needle-connect
+cmd/needle-listen/needle-listen

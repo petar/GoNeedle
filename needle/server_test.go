@@ -37,6 +37,5 @@ func TestServer(t *testing.T) {
 	startListener("1", t)
 	time.Sleep(1e9)
 	startConnect("1", t)
-	startConnect("2", t)
 	<-make(chan int)
 }

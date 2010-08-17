@@ -12,21 +12,24 @@ import (
 )
 
 var (
-	flagPing = flag.String("ping", ":62077", "Address where server listens for UDP ping updates")
-	flagHTTP = flag.String("http", ":62070", "Address of HTTP API")
+	flagServer = flag.String("server", "", "Address of Needle server HTTP API")
+	flagId     = flag.String("id", "", "Target ID to connect to")
+	flagPort   = flag.String("port", "", "Target port to connect to")
 )
 
 func main() {
 	flag.Parse()
 	fmt.Fprintf(os.Stderr, 
-		"Starting Needle Daemon, 2010 (C) Petar Maymounkov, " +
+		"Starting Needle Connect, 2010 (C) Petar Maymounkov, " +
 		"http://http://github.com/petar/GoNeedle\n")
-	_,err := needle.MakeServer(*flagPing, *flagHTTP)
+
+	_,err := needle.Dial(*flagServer, *flagId, *flagPort)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Problem: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "Listening for pings on %s, accepting HTTP API queries on %s\n",
-		*flagPing, *flagHTTP)
+	fmt.Fprintf(os.Stderr, "Dialing %s:%s, using server %s\n",
+		*flagId, *flagPort, *flagServer)
+
 	<-make(chan int)
 }

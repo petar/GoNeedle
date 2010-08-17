@@ -8,3 +8,8 @@ package proto;
 message Ping {
 	required string Id = 1;
 }
+
+message Connect {
+	//required Session = 1;
+	required string Port = 2;
+}

@@ -24,9 +24,19 @@ func startListener(id string, t *testing.T) {
 	}
 }
 
+func startConnect(id string, t *testing.T) {
+	_, err := Dial("localhost:62070", id, "haha")
+	if err != nil {
+		t.Fatalf("Connect: %s", err)
+	}
+}
+
 func TestServer(t *testing.T) {
 	startServer(t)
 	time.Sleep(1e9)
 	startListener("1", t)
+	time.Sleep(1e9)
+	startConnect("1", t)
+	startConnect("2", t)
 	<-make(chan int)
 }

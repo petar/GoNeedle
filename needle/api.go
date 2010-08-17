@@ -5,6 +5,8 @@
 package needle
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"sync"
@@ -76,6 +78,60 @@ func (qa *queryAPI) serveAndCloseConn(conn net.Conn) {
 
 	resp := buildResp(r)
 	sc.Write(resp)
+}
+
+func fetchAPI(serverAddr, query string) (string, os.Error) {
+
+	fmt.Printf("dialing\n")
+	conn, err := net.Dial("tcp", "", serverAddr)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	cc := http.NewClientConn(conn, nil)
+	defer cc.Close()
+
+	url, err := http.ParseURL("http://" + serverAddr + "/?q=" + http.URLEscape(query))
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("url ok = %s \n", url.String())
+	req := &http.Request{
+		Method: "GET",
+		URL: url, 
+		Proto: "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Close: true,
+		Host: serverAddr,
+		UserAgent: "GoNeedle-ClientConnect",
+	}
+
+	err = cc.Write(req)
+	fmt.Printf("written\n")
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("reading ..\n")
+	resp, err := cc.Read()
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("read ok\n")
+	if resp.Body == nil {
+		return "", nil
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("draining ..\n")
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
 }
 
 var (

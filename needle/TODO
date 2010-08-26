@@ -1,3 +1,2 @@
 
 o Add authentication so that node Id's cannot be hijacked
-o Make client-server connections persistent to reduce latency or use RPC package

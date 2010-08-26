@@ -23,17 +23,34 @@ import (
 //   -- Use LLRB for expiration algorithm
 
 type Server struct {
-	udp *net.UDPConn	// Socket that receives UDP pings from the clients
-	ids map[string]*client  // Id-to-client map
-	lk  sync.Mutex          // Lock for ids field
+	conn *net.UDPConn	// Socket that receives UDP pings from the clients
+	ids  map[string]*client  // Id-to-client map
+	lk   sync.Mutex          // Lock for ids field
 }
 
 // client describes real-time information for a given client
 type client struct {
-	id       string
-	lastSeen int64
-	addr     *net.UDPAddr
+	id           string
+	lastSeen     int64
+	addr         *net.UDPAddr
+
+	// Ring source (or dial target) maps to the time when the ring (or dial)
+	// request was communicated to the server
+	dials, rings map[string]int64
 }
+
+func makeClient(id string, lastSeen int64, addr *net.UDPAddr) *client {
+	return &client{
+		id:       id,
+		lastSeen: lastSeen,
+		addr:     addr,
+		dials:    make(map[string]int64),
+		rings:    make(map[string]int64),
+	}
+}
+
+// o When pong-ing, attach dial/ring list
+// o When ping-ing, read out the dial requests and update clients involved
 
 func MakeServer(uaddr string, haddr string) (*Server, os.Error) {
 	
@@ -48,40 +65,116 @@ func MakeServer(uaddr string, haddr string) (*Server, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	err = conn.SetReadTimeout(ExpirePeriod / 2)
-	if err != nil {
-		return nil, err
-	}
 
 	// Start server
 	s := &Server{
-		udp: conn,
+		conn: conn,
 		ids: make(map[string]*client),
 	}
-	_, err = makeQueryAPI(
-		haddr, 
-		func(q string) (string, os.Error) { return s.Query(q) }, 
-		MaxFD,
-	)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	go s.loop()
+	go s.listenLoop()
+	go s.expireLoop()
 
 	return s, nil
 }
 
-// expire removes all client structures that have not been refreshed recently
-func (s *Server) expire(now int64) {
+// lookupAddrNeedsLock() returns the address of the given ID.
+// This routine must be called inside a lock on s.lk
+func (s *Server) lookupAddrNeedsLock(id string) *net.UDPAddr {
+	c, ok := s.ids[id]
+	if !ok {
+		return nil
+	}
+	return c.addr
+}
+
+// expire() removes all client structures that have not been refreshed recently
+func (s *Server) expire() {
 	s.lk.Lock()
 	defer s.lk.Unlock()
 
+	now := time.Nanoseconds()
 	for id, cl := range s.ids {
-		if now - cl.lastSeen > ClientFreshness {
+		if now - cl.lastSeen > Lifetime {
 			s.ids[id] = nil, false
+			continue
+		}
+		for id2, l2 := range cl.dials {
+			if now - l2 > Lifetime {
+				cl.dials[id2] = 0, false
+			}
+		}
+		for id2, l2 := range cl.rings {
+			if now - l2 > Lifetime {
+				cl.rings[id2] = 0, false
+			}
 		}
 	}
+}
+
+func (s *Server) expireLoop() {
+	for {
+		s.expire()
+		time.Sleep(Lifetime)
+	}
+}
+
+// makePongPacket() prepares a pong packet for the given id
+func (s *Server) makePongPacket_NL(id string) []byte {
+	c, ok := s.ids[id]
+	if !ok {
+		return nil
+	}
+
+	payload := &proto.PeerBound{}
+	payload.Pong := &proto.Pong{}
+
+	prep := make(map[string]string)
+
+	for cid, _ := range c.rings {
+		a := s.lookupAddrNeedsLock(cid)
+		if a == nil {
+			continue
+		}
+		prep[cid] := a.String()
+	}
+
+	for did, _ := range c.dials {
+		a := s.lookupAddrNeedsLock(did)
+		if a == nil {
+			continue
+		}
+		prep[did] := a.String()
+	}
+
+	// XXX: Make sure that packet does not exceed allowed size
+	payload.Pong.Punches := make([]*proto.PunchPoint, len(prep))
+	k := 0
+	for pId, pAddr := range prep {
+		payload.Pong.Punches[k] = &pAddr
+		k++
+	}
+
+	packet, err := pb.Marshal(payload)
+	if err != nil {
+		return nil
+	}
+	return packet
+}
+
+// pong() sends a packet to the desired node
+func (s *Server) pong(id string) {
+	s.lk.Lock()
+	defer s.lk.Unlock()
+
+	taddr := s.lookupAddr_NL(id)
+	if taddr == nil {
+		return
+	}
+	packet := s.makePongPacket_NL(id)
+	if packet == nil {
+		return
+	}
+	n, err := s.conn.WriteToUDP(b, taddr)
 }
 
 func (s *Server) updateClient(id string, now int64, addr *net.UDPAddr) {
@@ -93,11 +186,9 @@ func (s *Server) updateClient(id string, now int64, addr *net.UDPAddr) {
 		cl.lastSeen = now
 		cl.addr = addr
 	} else {
-		s.ids[id] = &client{
-			id:       id,
-			lastSeen: now,
-			addr:     addr,
-		}
+		c := makeClient(id, now, addr)
+		s.ids[id] = c
+		?
 	}
 }
 
@@ -105,7 +196,7 @@ func (s *Server) poll() os.Error {
 
 	// Read next UDP packet
 	b := make([]byte, MaxIdLen + 32)
-	n, addr, err := s.udp.ReadFromUDP(b)
+	n, addr, err := s.conn.ReadFromUDP(b)
 	if err != nil {
 		return err
 	}
@@ -133,38 +224,4 @@ func (s *Server) loop() {
 			lastExpire = time.Nanoseconds()
 		}
 	}
-}
-
-func int64ToString(i int64) string {
-	pbuf := pb.NewBuffer(nil)
-	pbuf.EncodeFixed64(uint64(i))
-	return hex.EncodeToString(pbuf.Bytes())
-}
-
-func stringToInt64(s string) (int64, os.Error) {
-	buf, err := hex.DecodeString(s)
-	if err != nil {
-		return 0, err
-	}
-	pbuf := pb.NewBuffer(buf)
-	ui, err := pbuf.DecodeFixed64()
-	if err != nil {
-		return 0, err
-	}
-	return int64(ui), nil
-}
-
-func (s *Server) Query(query string) (string, os.Error) {
-	qid := strings.TrimSpace(query)
-	if len(qid) > MaxIdLen {
-		return "", ErrIdLen
-	}
-	s.lk.Lock()
-	cl, ok := s.ids[qid]
-	result := "!no-entry"
-	if ok {
-		result = cl.addr.String()
-	}
-	s.lk.Unlock()
-	return result, nil
 }

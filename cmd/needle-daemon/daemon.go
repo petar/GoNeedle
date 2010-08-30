@@ -16,6 +16,7 @@ var (
 )
 
 func main() {
+	needle.InstallCtrlCPanic()
 	flag.Parse()
 	fmt.Fprintf(os.Stderr, 
 		"Starting Needle Daemon, 2010 (C) Petar Maymounkov, " +

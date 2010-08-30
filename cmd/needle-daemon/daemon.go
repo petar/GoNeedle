@@ -13,7 +13,6 @@ import (
 
 var (
 	flagPing = flag.String("ping", ":62077", "Address where server listens for UDP ping updates")
-	flagHTTP = flag.String("http", ":62070", "Address of HTTP API")
 )
 
 func main() {
@@ -21,12 +20,11 @@ func main() {
 	fmt.Fprintf(os.Stderr, 
 		"Starting Needle Daemon, 2010 (C) Petar Maymounkov, " +
 		"http://http://github.com/petar/GoNeedle\n")
-	_,err := needle.MakeServer(*flagPing, *flagHTTP)
+	_,err := needle.MakeServer(*flagPing)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Problem: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "Listening for pings on %s, accepting HTTP API queries on %s\n",
-		*flagPing, *flagHTTP)
+	fmt.Fprintf(os.Stderr, "Listening for pings on %s ...\n", *flagPing)
 	<-make(chan int)
 }

@@ -53,16 +53,17 @@ func MakePeer(id, bindAddr, serverAddr string) (*Peer, os.Error) {
 	return p, nil
 }
 
-func (p *Peer) Dial(dialToId string) (Conn, os.Error) {
+//func (p *Peer) Dial(dialToId string) (Conn, os.Error) {
+func (p *Peer) Dial(dialToId string) {
 	c := make(chan os.Error)
 	p.lk.Lock()
 	p.dials.Add(dialToId, time.Nanoseconds(), c)
 	p.lk.Unlock()
 	p.ping()
-	cerr := <-c
+	<-c
 
 	// XXX: to be continued
-	return nil, nil
+	return
 }
 
 // makePingPacket() creates a current ping packet for sending to needle server
@@ -71,7 +72,7 @@ func (p *Peer) makePingPacket() []byte {
 	defer p.lk.Unlock()
 
 	payload := &proto.Ping{
-		Id:      p.id,
+		Id:      &p.id,
 		Dialing: p.dials.GetIds(),
 	}
 	buf, err := pb.Marshal(payload)
@@ -85,13 +86,13 @@ func (p *Peer) makePingPacket() []byte {
 func (p *Peer) ping() {
 	packet := p.makePingPacket()
 	if packet != nil {
-		p.conn.WriteToUDP(packet, l.serverAddr)
+		p.conn.WriteToUDP(packet, p.serverAddr)
 	}
 }
 
 func (p *Peer) pingLoop() {
 	for {
-		ping()
+		p.ping()
 		time.Sleep(PingPeriod)
 	}
 }
@@ -114,23 +115,23 @@ func (p *Peer) expireDialsLoop() {
 func (p *Peer) listenLoop() {
 	for {
 		buf := make([]byte, MaxPacketSize)
-		n, addr, err := l.conn.ReadFromUDP(buf)
+		n, addr, err := p.conn.ReadFromUDP(buf)
 		if err != nil {
 			continue
 		}
 		fmt.Printf("Packet from %s/%d\n", addr.String(), n)
 
 		payload := &proto.PeerBound{}
-		err := pb.Unmarshal(buf, payload)
+		err = pb.Unmarshal(buf, payload)
 		if err != nil {
 			continue
 		}
 
 		switch {
 		case payload.Pong != nil:
-			for _, m := range payload.Pong.Mappings {
+			for _, m := range payload.Pong.Punches {
 				// Resolve remote peer
-				addr, err := net.ResolveUDPAddr(m.Addr)
+				addr, err := net.ResolveUDPAddr(*m.Address)
 				if err != nil {
 					break
 				}
@@ -138,7 +139,7 @@ func (p *Peer) listenLoop() {
 				// Prepare cargo packet
 				payload := &proto.PeerBound{}
 				payload.Cargo = &proto.Cargo{}
-				payload.Cargo.Id = &p.conn.id
+				payload.Cargo.OriginId = &p.id
 				packet, err := pb.Marshal(payload)
 				if err != nil {
 					break
@@ -147,6 +148,7 @@ func (p *Peer) listenLoop() {
 				go func() {
 					for {
 						p.conn.WriteToUDP(packet, addr)
+						time.Sleep(1e9)
 					}
 				}()
 			}

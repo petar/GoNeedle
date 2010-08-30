@@ -10,7 +10,7 @@ import (
 )
 
 type dialBook struct {
-	ids map[string]*list.List
+	dials map[string]*list.List
 }
 
 type dialTicket struct {
@@ -25,28 +25,27 @@ func makeDialBook() *dialBook {
 }
 
 func (db *dialBook) Init() {
-	db.ids := make(map[string]*list.List)
+	db.dials = make(map[string]*list.List)
 }
 
 func (db *dialBook) Add(id string, when int64, notify chan<- os.Error) {
-	l, ok := db.ids[id]
+	l, ok := db.dials[id]
 	if !ok {
 		l = list.New()
-		db.ids[id] = l
+		db.dials[id] = l
 	}
-	list.PushBack(&dialTicket{when, notify})
+	l.PushBack(&dialTicket{when, notify})
 }
 
-// RETURNS the list of tickets (as *dialTicket) that have been expired
+// RETURNS the list of tickets (list values are *dialTicket) that have been expired
 func (db *dialBook) Expire(now, ageLimit int64) *list.List {
 	r := list.New()
-	for _, il := range db.ids {
-		l := il.(*list.List)
+	for _, l := range db.dials {
 		for e := l.Front(); e != nil; e = e.Next() {
 			t := e.Value.(*dialTicket)
 			if now - t.when > ageLimit {
 				l.Remove(e)
-				r.Push(t)
+				r.PushBack(t)
 			}
 		}
 	}
@@ -54,7 +53,7 @@ func (db *dialBook) Expire(now, ageLimit int64) *list.List {
 }
 
 func (db *dialBook) GetDialsTicketsForId(id string) *list.List {
-	r, ok := db.ids.[id]
+	r, ok := db.dials[id]
 	if !ok {
 		return list.New()
 	}
@@ -62,9 +61,9 @@ func (db *dialBook) GetDialsTicketsForId(id string) *list.List {
 }
 
 func (db *dialBook) GetIds() []string {
-	r := make([]string, len(db.ids))
+	r := make([]string, len(db.dials))
 		k := 0
-	for id, _ := range db.ids {
+	for id, _ := range db.dials {
 		r[k] = id
 		k++
 	}

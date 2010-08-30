@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	flagId     = flag.String("id", "", "ID of listener")
-	flagBind   = flag.String("bind", "", "UDP address to bind to")
-	flagServer = flag.String("server", "", "UDP address of Needle server")
+	flagBind     = flag.String("bind", "", "Local UDP address to bind to")
+	flagServer   = flag.String("server", "", "Address of Needle server")
+	flagLocalId  = flag.String("local-id", "", "Local ID")
 )
 
 func main() {
@@ -23,11 +23,12 @@ func main() {
 		"Starting Needle Listen, 2010 (C) Petar Maymounkov, " +
 		"http://http://github.com/petar/GoNeedle\n")
 
-	_,err := needle.MakeListener(*flagId, *flagBind, *flagServer)
+	_, err := needle.MakePeer(*flagLocalId, *flagBind, *flagServer)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Problem: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Problem starting peer: %s\n", err)
 		os.Exit(1)
 	}
+
 	fmt.Fprintf(os.Stderr, "Listening for connections on %s, using server %s\n",
 		*flagBind, *flagServer)
 

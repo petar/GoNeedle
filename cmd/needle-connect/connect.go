@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	flagServer = flag.String("server", "", "Address of Needle server HTTP API")
-	flagId     = flag.String("id", "", "Target ID to connect to")
-	flagPort   = flag.String("port", "", "Target port to connect to")
+	flagBind     = flag.String("bind", "", "Local UDP address to bind to")
+	flagServer   = flag.String("server", "", "Address of Needle server")
+	flagLocalId  = flag.String("local-id", "", "Local ID")
+	flagRemoteId = flag.String("remote-id", "", "Remote ID to connect to")
 )
 
 func main() {
@@ -23,13 +24,14 @@ func main() {
 		"Starting Needle Connect, 2010 (C) Petar Maymounkov, " +
 		"http://http://github.com/petar/GoNeedle\n")
 
-	_,err := needle.Dial(*flagServer, *flagId, *flagPort)
+	peer, err := needle.MakePeer(*flagLocalId, *flagBind, *flagServer)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Problem: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Problem starting peer: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "Dialing %s:%s, using server %s\n",
-		*flagId, *flagPort, *flagServer)
+
+	fmt.Fprintf(os.Stderr, "Dialing %s, using server %s\n", *flagRemoteId, *flagServer)
+	peer.Dial(*flagRemoteId)
 
 	<-make(chan int)
 }

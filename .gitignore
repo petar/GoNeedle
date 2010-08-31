@@ -24,6 +24,10 @@ syntax:regexp
 cmd/needle-daemon/needle-daemon
 cmd/needle-connect/needle-connect
 cmd/needle-listen/needle-listen
+
 n-daemon
 n-listen
 n-connect
+needle/n-connect.go
+needle/n-listen.go
+needle/n-daemon.go

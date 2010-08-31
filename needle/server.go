@@ -151,8 +151,7 @@ func (s *Server) makePongPacket_NL(id string) []byte {
 	payload.Pong.Punches = make([]*proto.PunchPoint, len(prep))
 	k := 0
 	for pId, pAddr := range prep {
-		payload.Pong.Punches[k].Id = &pId
-		payload.Pong.Punches[k].Address = &pAddr
+		payload.Pong.Punches[k] = &proto.PunchPoint{Id: &pId, Address: &pAddr}
 		k++
 	}
 

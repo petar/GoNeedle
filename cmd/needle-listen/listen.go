@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-	needle.InstallCtrlCPanic()
+	//needle.InstallCtrlCPanic()
 	flag.Parse()
 	fmt.Fprintf(os.Stderr, 
 		"Starting Needle Listen, 2010 (C) Petar Maymounkov, " +

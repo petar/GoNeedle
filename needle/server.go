@@ -235,6 +235,7 @@ func (s *Server) receivePing() {
 	// Read next UDP packet
 	b := make([]byte, MaxPacketSize + 1)
 	n, addr, err := s.conn.ReadFromUDP(b)
+	Logf("Pack recv'd\n")
 	if err != nil || n >= MaxPacketSize + 1 {
 		return
 	}

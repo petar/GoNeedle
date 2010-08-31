@@ -87,6 +87,7 @@ func (p *Peer) ping() {
 	packet := p.makePingPacket()
 	if packet != nil {
 		p.conn.WriteToUDP(packet, p.serverAddr)
+		Logf("Ping OK\n")
 	}
 }
 
@@ -119,10 +120,10 @@ func (p *Peer) listenLoop() {
 		if err != nil {
 			continue
 		}
-		fmt.Printf("Packet from %s/%d\n", addr.String(), n)
+		Logf("Packet from %s/%d\n", addr.String(), n)
 
 		payload := &proto.PeerBound{}
-		err = pb.Unmarshal(buf, payload)
+		err = pb.Unmarshal(buf[0:n], payload)
 		if err != nil {
 			continue
 		}

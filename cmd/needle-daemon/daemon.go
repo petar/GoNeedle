@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 	fmt.Fprintf(os.Stderr, 
 		"Starting Needle Daemon, 2010 (C) Petar Maymounkov, " +
-		"http://http://github.com/petar/GoNeedle\n")
+		"http://github.com/petar/GoNeedle\n")
 	_,err := needle.MakeServer(*flagPing)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Problem: %s\n", err)

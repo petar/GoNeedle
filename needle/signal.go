@@ -5,6 +5,8 @@
 package needle
 
 import (
+	"fmt"
+	"os"
 	"os/signal"
 )
 
@@ -16,4 +18,8 @@ func InstallCtrlCPanic() {
 			}
 		}
 	}()
+}
+
+func Logf(f string, rest ...interface{}) {
+	fmt.Fprintf(os.Stderr, f, rest)
 }

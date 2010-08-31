@@ -22,7 +22,7 @@ func main() {
 	flag.Parse()
 	fmt.Fprintf(os.Stderr, 
 		"Starting Needle Listen, 2010 (C) Petar Maymounkov, " +
-		"http://http://github.com/petar/GoNeedle\n")
+		"http://github.com/petar/GoNeedle\n")
 
 	_, err := needle.MakePeer(*flagLocalId, *flagBind, *flagServer)
 	if err != nil {
